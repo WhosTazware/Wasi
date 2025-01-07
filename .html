@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>9D Flying Ball Game for Mobile</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #1e1e1e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Arial', sans-serif;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(to bottom, #87ceeb, #2c3e50);
+            overflow: hidden;
+        }
+
+        #ball {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle at center, rgb(0, 0, 255), rgb(0, 0, 139));
+            border-radius: 50%;
+            box-shadow: 
+                0 0 20px rgba(0, 0, 255, 0.7), 
+                0 0 30px rgba(0, 0, 255, 0.6), 
+                0 0 50px rgba(0, 0, 255, 0.5), 
+                0 0 70px rgba(0, 0, 255, 0.4);
+            transition: transform 0.1s ease-in-out;
+        }
+
+        .building {
+            position: absolute;
+            width: 80px;
+            height: 200px;
+            background: linear-gradient(to top, rgb(255, 223, 186), rgb(255, 187, 87));
+            border: 2px solid #f39c12;
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.3);
+            bottom: 0;
+        }
+
+        .window {
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            background: rgb(252, 252, 252);
+            border-radius: 2px;
+        }
+
+        #score {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 30px;
+            font-weight: bold;
+            color: white;
+        }
+
+        #game-over {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 40px;
+            color: white;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="ball"></div>
+        <div id="score">Score: 0</div>
+        <div id="game-over">Game Over</div>
+    </div>
+
+    <script>
+        const ball = document.getElementById('ball');
+        const gameContainer = document.getElementById('game-container');
+        const scoreDisplay = document.getElementById('score');
+        const gameOverDisplay = document.getElementById('game-over');
+
+        let ballX = window.innerWidth / 2 - 30;
+        let ballY = window.innerHeight / 2 - 30;
+        let velocityY = 0;
+        let gravity = 0.2;
+        let bounceFactor = 0.8;
+        let flyingSpeed = 5;
+        let score = 0;
+        let gameOver = false;
+        let buildings = [];
+        let buildingSpeed = 4;
+
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchMoveX = 0;
+        let touchMoveY = 0;
+
+        // For touch controls
+        gameContainer.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        });
+
+        gameContainer.addEventListener('touchmove', (e) => {
+            touchMoveX = e.touches[0].clientX;
+            touchMoveY = e.touches[0].clientY;
+
+            // Update ball position based on swipe
+            ballX += (touchMoveX - touchStartX) / 5;
+            ballY += (touchMoveY - touchStartY) / 5;
+
+            // Prevent the ball from going out of bounds horizontally (X-axis)
+            if (ballX >= gameContainer.offsetWidth - 60) ballX = gameContainer.offsetWidth - 60;
+            if (ballX <= 0) ballX = 0;
+
+            // Prevent the ball from going out of bounds vertically (Y-axis)
+            if (ballY >= gameContainer.offsetHeight - 60) ballY = gameContainer.offsetHeight - 60;
+            if (ballY <= 0) ballY = 0;
+
+            touchStartX = touchMoveX;
+            touchStartY = touchMoveY;
+
+            ball.style.transform = `translate(${ballX}px, ${ballY}px)`;
+        });
+
+        // Game loop
+        function moveBall() {
+            velocityY += gravity;
+            ballY += velocityY;
+
+            if (ballY >= gameContainer.offsetHeight - 60) {
+                ballY = gameContainer.offsetHeight - 60;
+                if (velocityY > 0) {
+                    velocityY = -velocityY * bounceFactor;
+                } else {
+                    velocityY = 0;
+                }
+            }
+
+            if (ballX >= gameContainer.offsetWidth - 60) ballX = gameContainer.offsetWidth - 60;
+            if (ballX <= 0) ballX = 0;
+
+            ball.style.transform = `translate(${ballX}px, ${ballY}px)`;
+        }
+
+        function createBuilding() {
+            const building = document.createElement('div');
+            building.classList.add('building');
+            building.style.left = `${gameContainer.offsetWidth}px`;
+            building.style.height = `${Math.random() * 150 + 150}px`;
+
+            // Add windows to the building
+            for (let i = 10; i < parseInt(building.style.height); i += 30) {
+                for (let j = 10; j < 70; j += 30) {
+                    const windowDiv = document.createElement('div');
+                    windowDiv.classList.add('window');
+                    windowDiv.style.top = `${i}px`;
+                    windowDiv.style.left = `${j}px`;
+                    building.appendChild(windowDiv);
+                }
+            }
+
+            gameContainer.appendChild(building);
+            buildings.push(building);
+        }
+
+        function moveBuildings() {
+            buildings.forEach((building, index) => {
+                const buildingLeft = parseInt(building.style.left) - buildingSpeed;
+                building.style.left = `${buildingLeft}px`;
+
+                // Remove the building if it goes out of view
+                if (buildingLeft + building.offsetWidth < 0) {
+                    gameContainer.removeChild(building);
+                    buildings.splice(index, 1);
+                }
+
+                // Check for collision between the ball and the building
+                const ballRect = ball.getBoundingClientRect();
+                const buildingRect = building.getBoundingClientRect();
+
+                if (
+                    ballRect.left < buildingRect.right &&
+                    ballRect.right > buildingRect.left &&
+                    ballRect.top < buildingRect.bottom &&
+                    ballRect.bottom > buildingRect.top
+                ) {
+                    gameOver = true;
+                    gameOverDisplay.style.display = 'block';
+                }
+
+                // If the ball passes a building, increase the score
+                if (buildingLeft + building.offsetWidth < ballX && !building.crossed) {
+                    building.crossed = true;
+                    score += 10;
+                }
+            });
+        }
+
+        function gameLoop() {
+            if (gameOver) return;
+
+            moveBall();
+            moveBuildings();
+            scoreDisplay.textContent = `Score: ${score}`;
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Create buildings at intervals
+        setInterval(createBuilding, 2000);
+        gameLoop();
+    </script>
+</body>
+</html>
+
